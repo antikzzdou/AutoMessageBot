@@ -13,20 +13,29 @@ import com.neokey.zoneautomessage.event.StickInteractionHandler;
 import com.neokey.zoneautomessage.manager.ZoneManager;
 import com.neokey.zoneautomessage.manager.WorldConfigManager;
 import com.neokey.zoneautomessage.manager.SelectionManager;
+import com.neokey.zoneautomessage.manager.MessageManager;
 import com.neokey.zoneautomessage.command.ZoneCommands;
+import com.neokey.zoneautomessage.render.ZoneRenderer;
 
 /**
  * ╔══════════════════════════════════════════════════════════════════════════╗
- * ║          ZONE AUTO MESSAGE - Punto de Entrada Principal                  ║
+ * ║       ZONE AUTO MESSAGE v2.0 - Punto de Entrada Principal                ║
  * ║                                                                          ║
- * ║ Características:                                                         ║
- * ║ - Selección de áreas con palo (click izq/der)                           ║
- * ║ - Guardado independiente por mundo/servidor                             ║
- * ║ - Sistema de comandos completo (/zam)                                   ║
- * ║ - Detección automática de entrada/salida de zonas                       ║
- * ║ - Keybindings personalizables                                           ║
+ * ║ NUEVAS CARACTERÍSTICAS:                                                  ║
+ * ║ - ✨ Renderizado visual 3D de zonas y selecciones                        ║
+ * ║ - 💬 Mensajes individuales por jugador (/msg)                            ║
+ * ║ - 📏 Buffer dinámico basado en tamaño de zona                            ║
+ * ║ - 🎨 Soporte MiniMessage y colores hex (&#rrggbb)                        ║
+ * ║ - 📊 Integración con TextPlaceholderAPI                                  ║
+ * ║ - 🖼️ GUI visual mejorada                                                 ║
  * ║                                                                          ║
- * ║ Autor: NeoKey | Versión: 1.0.0 | MC: 1.21.8                            ║
+ * ║ Formatos soportados:                                                     ║
+ * ║ - Legacy: &c, §c                                                         ║
+ * ║ - Hex: &#ff0000                                                          ║
+ * ║ - MiniMessage: <gradient:#ff0000:#00ff00>texto</gradient>               ║
+ * ║ - Placeholders: [nickname], [zona_name], %zam:zone_count%               ║
+ * ║                                                                          ║
+ * ║ Autor: NeoKey | Versión: 2.0.0 | MC: 1.21.8                            ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
  */
 public class ZoneAutoMessageMod implements ClientModInitializer {
@@ -34,12 +43,12 @@ public class ZoneAutoMessageMod implements ClientModInitializer {
 	// Identificadores del mod
 	public static final String MOD_ID = "zoneautomessage";
 	public static final String MOD_NAME = "Zone Auto Message";
-	public static final String MOD_VERSION = "1.0.0";
+	public static final String MOD_VERSION = "2.0.0";
 
 	// Keybindings globales
 	public static KeyBinding openZoneManager;
 	public static KeyBinding toggleMod;
-	public static KeyBinding addZoneKeybind;
+	public static KeyBinding clearSelection;
 
 	// Managers singleton
 	private static ZoneManager zoneManager;
@@ -49,45 +58,48 @@ public class ZoneAutoMessageMod implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
-		System.out.println("═══════════════════════════════════════════════════════════");
-		System.out.println("[" + MOD_NAME + " v" + MOD_VERSION + "] Inicializando...");
-		System.out.println("═══════════════════════════════════════════════════════════");
+		printHeader();
 
 		try {
 			// 1. Inicializar WorldConfigManager (detecta mundo actual)
 			worldConfigManager = new WorldConfigManager();
 			worldConfigManager.loadConfig();
-			System.out.println("[INIT] ✓ WorldConfigManager inicializado");
+			logSuccess("WorldConfigManager inicializado");
 
 			// 2. Inicializar ZoneManager (carga zonas del mundo actual)
 			zoneManager = new ZoneManager();
 			zoneManager.loadZones(worldConfigManager.getZonesData());
-			System.out.println("[INIT] ✓ ZoneManager inicializado con " + 
+			logSuccess("ZoneManager inicializado con " + 
 				zoneManager.getZoneCount() + " zona(s)");
 
 			// 3. Inicializar SelectionManager (sistema de selección con palo)
 			selectionManager = new SelectionManager();
-			System.out.println("[INIT] ✓ SelectionManager inicializado");
+			logSuccess("SelectionManager inicializado");
 
 			// 4. Registrar keybindings
 			registerKeybindings();
-			System.out.println("[INIT] ✓ Keybindings registrados");
+			logSuccess("Keybindings registrados");
 
 			// 5. Registrar event handlers
 			ClientTickEvents.END_CLIENT_TICK.register(new PlayerTickHandler());
 			StickInteractionHandler.register();
-			System.out.println("[INIT] ✓ Event handlers registrados");
+			logSuccess("Event handlers registrados");
 
 			// 6. Registrar comandos
 			ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
 				ZoneCommands.register(dispatcher);
 			});
-			System.out.println("[INIT] ✓ Comandos registrados");
+			logSuccess("Comandos registrados");
 
-			System.out.println("═══════════════════════════════════════════════════════════");
-			System.out.println("[" + MOD_NAME + "] ✓ Mod cargado exitosamente");
-			System.out.println("Mundo actual: " + worldConfigManager.getCurrentWorldId());
-			System.out.println("═══════════════════════════════════════════════════════════");
+			// 7. Registrar renderizador 3D (NUEVA CARACTERÍSTICA)
+			ZoneRenderer.register();
+			logSuccess("Renderizador 3D activado");
+
+			// 8. Registrar placeholders personalizados (NUEVA CARACTERÍSTICA)
+			MessageManager.registerCustomPlaceholders();
+			logSuccess("Placeholders personalizados registrados");
+
+			printFooter();
 
 		} catch (Exception e) {
 			System.err.println("[ERROR] Falló la inicialización del mod:");
@@ -97,11 +109,6 @@ public class ZoneAutoMessageMod implements ClientModInitializer {
 
 	/**
 	 * Registra todos los keybindings del mod.
-	 * 
-	 * Keybindings:
-	 * - Ctrl + Shift + J: Abre el gestor de zonas
-	 * - Ctrl + Shift + U: Activa/desactiva el mod
-	 * - Ctrl + Shift + N: Limpia la selección actual
 	 */
 	private void registerKeybindings() {
 		// Keybinding 1: Abrir gestor de zonas
@@ -125,7 +132,7 @@ public class ZoneAutoMessageMod implements ClientModInitializer {
 		);
 
 		// Keybinding 3: Limpiar selección
-		addZoneKeybind = KeyBindingHelper.registerKeyBinding(
+		clearSelection = KeyBindingHelper.registerKeyBinding(
 			new KeyBinding(
 				"key.zoneautomessage.clear_selection",
 				InputUtil.Type.KEYSYM,
@@ -175,5 +182,34 @@ public class ZoneAutoMessageMod implements ClientModInitializer {
 
 	public static void toggleMod() {
 		setModEnabled(!modEnabled);
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// UTILIDADES DE LOGGING
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	private void printHeader() {
+		System.out.println("═══════════════════════════════════════════════════════════");
+		System.out.println("[" + MOD_NAME + " v" + MOD_VERSION + "] Inicializando...");
+		System.out.println("═══════════════════════════════════════════════════════════");
+	}
+
+	private void printFooter() {
+		System.out.println("═══════════════════════════════════════════════════════════");
+		System.out.println("[" + MOD_NAME + "] ✓ Mod cargado exitosamente");
+		System.out.println("Mundo actual: " + worldConfigManager.getCurrentWorldId());
+		System.out.println("Zonas cargadas: " + zoneManager.getZoneCount());
+		System.out.println("═══════════════════════════════════════════════════════════");
+		System.out.println("NUEVAS CARACTERÍSTICAS v2.0:");
+		System.out.println("  ✨ Renderizado 3D visual de zonas");
+		System.out.println("  💬 Mensajes individuales por jugador");
+		System.out.println("  📏 Buffer dinámico automático");
+		System.out.println("  🎨 Soporte MiniMessage y hex colors");
+		System.out.println("  📊 Placeholders avanzados");
+		System.out.println("═══════════════════════════════════════════════════════════");
+	}
+
+	private void logSuccess(String message) {
+		System.out.println("[INIT] ✓ " + message);
 	}
 }

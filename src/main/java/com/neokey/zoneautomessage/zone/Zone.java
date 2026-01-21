@@ -4,14 +4,21 @@ import java.util.UUID;
 
 /**
  * ╔══════════════════════════════════════════════════════════════════════════╗
- * ║            ZONE - Modelo de Datos para Zonas 3D (Cuboides)               ║
+ * ║         ZONE - Modelo con Buffer Dinámico Basado en Tamaño              ║
  * ║                                                                          ║
- * ║ Responsabilidades:                                                       ║
- * ║ - Almacenar coordenadas del cuboide (X, Y, Z mín/máx)                   ║
- * ║ - Almacenar mensajes de entrada y salida personalizados                 ║
- * ║ - Detectar si el jugador está dentro de la zona                         ║
- * ║ - Aplicar lógica de buffer para evitar spam de mensajes                 ║
- * ║ - Gestionar transiciones de estado (entrada/salida)                     ║
+ * ║ MEJORAS v2.0:                                                            ║
+ * ║ - Buffer dinámico calculado automáticamente (10% del tamaño de zona)    ║
+ * ║ - Mínimo 5 bloques, máximo 200 bloques                                  ║
+ * ║ - Evita spam sin ser demasiado restrictivo                              ║
+ * ║ - Se adapta automáticamente a zonas pequeñas y grandes                  ║
+ * ║                                                                          ║
+ * ║ Fórmula del buffer:                                                      ║
+ * ║ buffer = max(5, min(200, diagonal_zona * 0.1))                          ║
+ * ║                                                                          ║
+ * ║ Ejemplos:                                                                ║
+ * ║ - Zona 10x10x10: buffer = 5 bloques (mínimo)                            ║
+ * ║ - Zona 100x100x100: buffer = 17 bloques                                 ║
+ * ║ - Zona 1000x1000x1000: buffer = 200 bloques (máximo)                    ║
  * ║                                                                          ║
  * ║ Autor: NeoKey                                                           ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
@@ -26,27 +33,23 @@ public class Zone {
 	private double minX, minY, minZ;
 	private double maxX, maxY, maxZ;
 
-	// Mensajes personalizados (soportan placeholders como [nickname], [zona_name], [time])
+	// Mensajes personalizados (soportan MiniMessage, Hex, placeholders)
 	private String enterMessage;
 	private String exitMessage;
 
 	// Control de estado del jugador
 	private boolean playerWasInside = false;
 
-	// Buffer distance = 8 chunks * 16 bloques/chunk = 128 bloques
-	// Evita spam cuando el jugador sale/entra del borde
-	private static final double BUFFER_DISTANCE = 128.0;
+	// Buffer dinámico (calculado automáticamente)
+	private double bufferDistance;
+
+	// Constantes para buffer
+	private static final double MIN_BUFFER = 5.0;
+	private static final double MAX_BUFFER = 200.0;
+	private static final double BUFFER_MULTIPLIER = 0.10; // 10% del tamaño
 
 	/**
 	 * Constructor principal para crear una nueva zona.
-	 *
-	 * @param zoneName Nombre descriptivo de la zona
-	 * @param minX Coordenada X mínima del cuboide
-	 * @param minY Coordenada Y mínima del cuboide
-	 * @param minZ Coordenada Z mínima del cuboide
-	 * @param maxX Coordenada X máxima del cuboide
-	 * @param maxY Coordenada Y máxima del cuboide
-	 * @param maxZ Coordenada Z máxima del cuboide
 	 */
 	public Zone(String zoneName, double minX, double minY, double minZ,
 			   double maxX, double maxY, double maxZ) {
@@ -61,9 +64,61 @@ public class Zone {
 		this.minZ = Math.min(minZ, maxZ);
 		this.maxZ = Math.max(minZ, maxZ);
 
-		// Mensajes por defecto
-		this.enterMessage = "§a✓ Bienvenido a [zona_name]";
-		this.exitMessage = "§c✗ Has salido de [zona_name]";
+		// Calcular buffer dinámico basado en tamaño
+		this.bufferDistance = calculateDynamicBuffer();
+
+		// Mensajes por defecto con placeholders
+		this.enterMessage = "<gradient:#00ff00:#00aa00>✓ Bienvenido a [zona_name]</gradient>";
+		this.exitMessage = "<gradient:#ff0000:#aa0000>✗ Has salido de [zona_name]</gradient>";
+
+		System.out.println(String.format(
+			"[Zone] Creada: %s | Buffer: %.1f bloques | Dimensiones: %.0fx%.0fx%.0f",
+			zoneName, bufferDistance, getWidth(), getHeight(), getDepth()
+		));
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// CÁLCULO DE BUFFER DINÁMICO
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Calcula el buffer dinámico basado en el tamaño de la zona.
+	 * 
+	 * El buffer es el 10% de la diagonal 3D de la zona, con un mínimo de 5
+	 * bloques y un máximo de 200 bloques.
+	 *
+	 * Esto evita que zonas pequeñas tengan buffers demasiado grandes,
+	 * y que zonas enormes tengan buffers excesivos.
+	 *
+	 * @return Buffer en bloques
+	 */
+	private double calculateDynamicBuffer() {
+		// Calcular diagonal 3D de la zona
+		double width = maxX - minX;
+		double height = maxY - minY;
+		double depth = maxZ - minZ;
+		
+		double diagonal = Math.sqrt(width * width + height * height + depth * depth);
+		
+		// Buffer = 10% de la diagonal
+		double buffer = diagonal * BUFFER_MULTIPLIER;
+		
+		// Aplicar límites (mín: 5, máx: 200)
+		buffer = Math.max(MIN_BUFFER, Math.min(MAX_BUFFER, buffer));
+		
+		return buffer;
+	}
+
+	/**
+	 * Recalcula el buffer dinámico si cambian las coordenadas.
+	 * Llamar después de usar setCoordinates().
+	 */
+	public void recalculateBuffer() {
+		this.bufferDistance = calculateDynamicBuffer();
+		System.out.println(String.format(
+			"[Zone] %s | Buffer recalculado: %.1f bloques",
+			zoneName, bufferDistance
+		));
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -72,12 +127,6 @@ public class Zone {
 
 	/**
 	 * Verifica si una posición XYZ está dentro de este cuboide.
-	 * Útil para detección rápida sin cálculo de distancia.
-	 *
-	 * @param x Coordenada X del jugador
-	 * @param y Coordenada Y del jugador
-	 * @param z Coordenada Z del jugador
-	 * @return true si está dentro, false si no
 	 */
 	public boolean isPlayerInside(double x, double y, double z) {
 		return x >= minX && x <= maxX &&
@@ -87,23 +136,12 @@ public class Zone {
 
 	/**
 	 * Calcula la distancia euclidiana mínima desde un punto al cuboide.
-	 * 
-	 * Fórmula: Se calcula la distancia a los bordes del cuboide.
-	 * Si el punto está dentro, retorna 0.
-	 * Si está fuera, retorna la distancia al punto más cercano del cuboide.
-	 *
-	 * @param x Coordenada X del jugador
-	 * @param y Coordenada Y del jugador
-	 * @param z Coordenada Z del jugador
-	 * @return Distancia en bloques
 	 */
 	public double getDistanceToZone(double x, double y, double z) {
-		// Calcular la distancia a cada eje
 		double dx = Math.max(minX - x, Math.max(x - maxX, 0));
 		double dy = Math.max(minY - y, Math.max(y - maxY, 0));
 		double dz = Math.max(minZ - z, Math.max(z - maxZ, 0));
 
-		// Fórmula euclidiana 3D
 		return Math.sqrt(dx * dx + dy * dy + dz * dz);
 	}
 
@@ -113,12 +151,8 @@ public class Zone {
 
 	/**
 	 * Actualiza el estado del jugador en relación con esta zona.
-	 * Implementa la lógica de buffer para evitar spam de mensajes.
-	 *
-	 * LÓGICA:
-	 * - Si el jugador ENTRA en la zona: retorna 1 (ENTRADA)
-	 * - Si el jugador SALE y está a +128 bloques: retorna -1 (SALIDA)
-	 * - Si no hay cambio: retorna 0 (SIN CAMBIO)
+	 * 
+	 * MEJORA: Ahora usa buffer dinámico calculado automáticamente.
 	 *
 	 * @param x Coordenada X del jugador
 	 * @param y Coordenada Y del jugador
@@ -135,17 +169,22 @@ public class Zone {
 		if (isInside && !playerWasInside) {
 			playerWasInside = true;
 			result = 1; // ENTRADA DETECTADA
-			System.out.println("[ZONE] ► Entrada detectada en: " + zoneName);
+			System.out.println(String.format(
+				"[ZONE] ► Entrada en: %s (Buffer: %.1f bloques)",
+				zoneName, bufferDistance
+			));
 		}
-		// CASO 2: Transición Dentro → Fuera (con lógica de buffer)
-		else if (!isInside && playerWasInside && distanceToZone > BUFFER_DISTANCE) {
+		// CASO 2: Transición Dentro → Fuera (con buffer dinámico)
+		else if (!isInside && playerWasInside && distanceToZone > bufferDistance) {
 			playerWasInside = false;
 			result = -1; // SALIDA DETECTADA
-			System.out.println("[ZONE] ◄ Salida detectada de: " + zoneName);
+			System.out.println(String.format(
+				"[ZONE] ◄ Salida de: %s (Distancia: %.1f > Buffer: %.1f)",
+				zoneName, distanceToZone, bufferDistance
+			));
 		}
 		// CASO 3: Dentro → Fuera pero aún en buffer
-		// (El jugador está fuera pero cercano, no enviar mensaje aún)
-		else if (!isInside && playerWasInside && distanceToZone <= BUFFER_DISTANCE) {
+		else if (!isInside && playerWasInside && distanceToZone <= bufferDistance) {
 			// Sin cambio, esperar a que se aleje más
 			result = 0;
 		}
@@ -155,10 +194,51 @@ public class Zone {
 
 	/**
 	 * Reinicia el estado de la zona.
-	 * Útil cuando se recarga el mod o cambia de mundo.
 	 */
 	public void resetState() {
 		playerWasInside = false;
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// GETTERS PARA DIMENSIONES
+	// ═══════════════════════════════════════════════════════════════════════════
+
+	/**
+	 * Obtiene el ancho de la zona (eje X).
+	 */
+	public double getWidth() {
+		return maxX - minX;
+	}
+
+	/**
+	 * Obtiene la altura de la zona (eje Y).
+	 */
+	public double getHeight() {
+		return maxY - minY;
+	}
+
+	/**
+	 * Obtiene la profundidad de la zona (eje Z).
+	 */
+	public double getDepth() {
+		return maxZ - minZ;
+	}
+
+	/**
+	 * Obtiene el volumen de la zona en bloques cúbicos.
+	 */
+	public double getVolume() {
+		return getWidth() * getHeight() * getDepth();
+	}
+
+	/**
+	 * Obtiene la diagonal 3D de la zona.
+	 */
+	public double getDiagonal() {
+		double w = getWidth();
+		double h = getHeight();
+		double d = getDepth();
+		return Math.sqrt(w * w + h * h + d * d);
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -193,6 +273,9 @@ public class Zone {
 		this.maxY = Math.max(minY, maxY);
 		this.minZ = Math.min(minZ, maxZ);
 		this.maxZ = Math.max(minZ, maxZ);
+		
+		// Recalcular buffer automáticamente
+		recalculateBuffer();
 	}
 
 	// Mensajes
@@ -221,15 +304,15 @@ public class Zone {
 		this.playerWasInside = state;
 	}
 
-	public static double getBufferDistance() {
-		return BUFFER_DISTANCE;
+	public double getBufferDistance() {
+		return bufferDistance;
 	}
 
 	@Override
 	public String toString() {
 		return String.format(
-			"Zone{id='%s', name='%s', bounds=[%.0f,%.0f,%.0f to %.0f,%.0f,%.0f]}",
-			zoneId, zoneName, minX, minY, minZ, maxX, maxY, maxZ
+			"Zone{id='%s', name='%s', bounds=[%.0f,%.0f,%.0f to %.0f,%.0f,%.0f], buffer=%.1f}",
+			zoneId, zoneName, minX, minY, minZ, maxX, maxY, maxZ, bufferDistance
 		);
 	}
 }
