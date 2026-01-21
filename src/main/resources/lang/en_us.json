@@ -1,6 +1,12 @@
 {
-  "_comment": "PLACEHOLDER - JSON file",
-  "description": "Strings de idioma (Inglés)",
-  "status": "pending",
-  "note": "Reemplaza todo el contenido de este archivo con el contenido correcto desde la documentación"
+  "category.zoneautomessage.main": "Zone Auto Message",
+  "key.zoneautomessage.open_manager": "Open Zone Manager",
+  "key.zoneautomessage.toggle": "Toggle Mod On/Off",
+  "key.zoneautomessage.clear_selection": "Clear Selection / Help",
+  "text.zoneautomessage.enabled": "Mod Enabled",
+  "text.zoneautomessage.disabled": "Mod Disabled",
+  "text.zoneautomessage.selection_cleared": "Selection cleared",
+  "text.zoneautomessage.zone_created": "Zone created successfully",
+  "text.zoneautomessage.zone_deleted": "Zone deleted",
+  "text.zoneautomessage.help.selection": "Use a stick to select areas:\n- Left click: Point 1\n- Right click: Point 2\n- Command: /zam create <name>"
 }

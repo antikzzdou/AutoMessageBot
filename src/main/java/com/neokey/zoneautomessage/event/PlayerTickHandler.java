@@ -11,16 +11,10 @@ import com.neokey.zoneautomessage.manager.MessageManager;
  * ║      PLAYER TICK HANDLER - Event Handler Principal (Bucle de Juego)      ║
  * ║                                                                          ║
  * ║ Responsabilidades:                                                       ║
- * ║ - Monitorear la posición del jugador cada tick (20 veces/segundo)        ║
- * ║ - Iterar sobre todas las zonas y detectar transiciones                   ║
- * ║ - Enviar mensajes cuando el jugador entra/sale de zonas                 ║
- * ║ - Manejar keybindings (abrir GUI, toggle mod, etc)                      ║
- * ║ - Optimizar: no hacer trabajo innecesario si mod está desactivado       ║
- * ║                                                                          ║
- * ║ RENDIMIENTO:                                                             ║
- * ║ - Iteración O(n) sobre zonas cada tick                                  ║
- * ║ - Cálculos geométricos 3D eficientes (sin sqrt innecesario)             ║
- * ║ - No afecta FPS significativamente con <1000 zonas                      ║
+ * ║ - Monitorear la posición del jugador cada tick                          ║
+ * ║ - Detectar transiciones de zonas (entrada/salida)                       ║
+ * ║ - Enviar mensajes automáticos                                           ║
+ * ║ - Manejar keybindings (toggle, limpiar selección)                       ║
  * ║                                                                          ║
  * ║ Autor: NeoKey                                                           ║
  * ╚══════════════════════════════════════════════════════════════════════════╝
@@ -39,7 +33,10 @@ public class PlayerTickHandler implements ClientTickEvents.EndTick {
 				return;
 			}
 
-			// Si el mod está desactivado, no hacer nada
+			// Manejar keybindings primero
+			handleKeybindings();
+
+			// Si el mod está desactivado, no procesar zonas
 			if (!ZoneAutoMessageMod.isModEnabled()) {
 				return;
 			}
@@ -62,9 +59,6 @@ public class PlayerTickHandler implements ClientTickEvents.EndTick {
 					handleZoneExit(zone);
 				}
 			}
-
-			// Manejar keybindings
-			handleKeybindings();
 
 			// Logging periódico (depuración)
 			if (tickCounter++ >= LOG_INTERVAL) {
@@ -94,7 +88,6 @@ public class PlayerTickHandler implements ClientTickEvents.EndTick {
 
 	/**
 	 * Maneja cuando el jugador sale de una zona.
-	 * (Después de estar a más de 128 bloques por la lógica de buffer)
 	 *
 	 * @param zone Zona de la que se salió
 	 */
@@ -114,18 +107,31 @@ public class PlayerTickHandler implements ClientTickEvents.EndTick {
 		// Toggle: Ctrl+Shift+U
 		if (ZoneAutoMessageMod.toggleMod.wasPressed()) {
 			ZoneAutoMessageMod.toggleMod();
+			boolean enabled = ZoneAutoMessageMod.isModEnabled();
+			MessageManager.sendDebugMessage(
+				enabled ? "§a✓ Mod activado" : "§c✗ Mod desactivado"
+			);
 		}
 
 		// Abrir gestor de zonas: Ctrl+Shift+J
 		if (ZoneAutoMessageMod.openZoneManager.wasPressed()) {
-			MessageManager.sendDebugMessage("§e[GUI] Abre el gestor de zonas (ModMenu)");
-			// Nota: La GUI real se abre desde ClientModInitializer con ModMenu
+			MessageManager.sendDebugMessage(
+				"§e[INFO] Usa §f/zam list §epara ver todas las zonas"
+			);
 		}
 
-		// Crear nueva zona: Ctrl+Shift+N
+		// Limpiar selección: Ctrl+Shift+N
 		if (ZoneAutoMessageMod.addZoneKeybind.wasPressed()) {
-			MessageManager.sendDebugMessage("§6[CREATE] Asistente para crear zona");
-			// Aquí irá la lógica de creación rápida de zonas
+			if (ZoneAutoMessageMod.getSelectionManager().hasActiveSelection()) {
+				ZoneAutoMessageMod.getSelectionManager().clearSelection();
+			} else {
+				MessageManager.sendDebugMessage(
+					"§e[INFO] Usa un palo para seleccionar áreas:\n" +
+					"§7- Click izquierdo: Punto 1\n" +
+					"§7- Click derecho: Punto 2\n" +
+					"§7- Comando: §f/zam create <nombre>"
+				);
+			}
 		}
 	}
 
@@ -139,10 +145,11 @@ public class PlayerTickHandler implements ClientTickEvents.EndTick {
 	private void logDebugInfo(double x, double y, double z) {
 		System.out.println(
 			String.format(
-				"[TICK] Pos: [%.1f, %.1f, %.1f] | Zonas: %d | Mod: %s",
+				"[TICK] Pos: [%.1f, %.1f, %.1f] | Zonas: %d | Mod: %s | Mundo: %s",
 				x, y, z,
 				ZoneAutoMessageMod.getZoneManager().getZoneCount(),
-				ZoneAutoMessageMod.isModEnabled() ? "ON" : "OFF"
+				ZoneAutoMessageMod.isModEnabled() ? "ON" : "OFF",
+				ZoneAutoMessageMod.getWorldConfigManager().getCurrentWorldId()
 			)
 		);
 	}

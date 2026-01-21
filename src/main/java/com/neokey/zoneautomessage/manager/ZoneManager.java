@@ -96,6 +96,21 @@ public class ZoneManager {
 	}
 
 	/**
+	 * Añade una zona ya creada al gestor.
+	 * Útil cuando se carga desde config o se crea externamente.
+	 *
+	 * @param zone Zona a añadir
+	 */
+	public void createZoneFromObject(Zone zone) {
+		if (zonesByName.containsKey(zone.getZoneName())) {
+			System.err.println("[ZoneManager] ✗ Ya existe zona: " + zone.getZoneName());
+			return;
+		}
+		addZoneInternal(zone);
+		totalZonesCreated++;
+	}
+
+	/**
 	 * Método interno para añadir una zona a los índices.
 	 */
 	private void addZoneInternal(Zone zone) {
