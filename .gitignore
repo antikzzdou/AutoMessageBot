@@ -1,0 +1,31 @@
+# Gradle
+.gradle/
+build/
+out/
+gradle-app.setting
+!gradle-wrapper.jar
+.gradletasknamecache
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+*.jar
+*.class
+
+# Dependencies
+libs/
+
+# Config files
+config/

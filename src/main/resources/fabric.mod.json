@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "id": "zoneautomessage",
+  "version": "${version}",
+  "name": "Zone Auto Message",
+  "description": "Mod de Cliente (Client-Side) para Minecraft que automatiza el envío de mensajes al chat basados en la ubicación del jugador (zonas 3D)",
+  "authors": [
+    "NeoKey"
+  ],
+  "contact": {
+    "sources": "https://github.com/neokey/zoneautomessage",
+    "issues": "https://github.com/neokey/zoneautomessage/issues"
+  },
+  "license": "MIT",
+  "icon": "assets/zoneautomessage/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.neokey.zoneautomessage.ZoneAutoMessageMod"
+    ]
+  },
+  "mixins": [],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "${minecraft_version}",
+    "java": ">=21"
+  },
+  "suggests": {
+    "modmenu": "*"
+  }
+}
