@@ -19,11 +19,13 @@ public class PlayerInfoUtil {
 
 	/**
 	 * Obtiene la dimensión actual del jugador.
+	 * ACTUALIZADO PARA MINECRAFT 1.21.8+
 	 */
 	public static String getDimensionName() {
 		if (CLIENT.world == null) return "Unknown";
-		var dimensionKey = CLIENT.world.getDimensionKey();
-		return dimensionKey.getValue().toString();
+		// En 1.21.8+ se usa getDimensionEntry() en lugar de getDimensionKey()
+		var dimensionEntry = CLIENT.world.getDimensionEntry();
+		return dimensionEntry.getIdAsString();
 	}
 
 	/**

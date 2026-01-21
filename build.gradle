@@ -1,22 +1,22 @@
 plugins {
-	id 'fabric-loom' version '1.14.+'
+	id 'fabric-loom' version '1.11-SNAPSHOT'
 	id 'maven-publish'
 }
 
 version = project.mod_version
 group = project.maven_group
+base.archivesName = project.archives_base_name
 
 repositories {
 	mavenCentral()
 	maven { url "https://maven.fabricmc.net/" }
 	maven { url "https://maven.terraformersmc.com/releases/" }
-	maven { url "https://maven.modmaven.k02c.dev/releases" }
 	google()
 }
 
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	mappings loom.officialMojangMappings()
+	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
 	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 	
@@ -38,29 +38,23 @@ processResources {
 			"loader_version": project.loader_version
 	}
 	
-	// Configurar encoding correctamente en Gradle 9.2
-	doFirst {
-		setFilteringCharset('UTF-8')
-	}
+	// Configurar encoding correctamente
+	filteringCharset = 'UTF-8'
 }
 
 java {
-	// NO uses toolchain, usa compatibilidad directa
 	sourceCompatibility = JavaVersion.VERSION_21
 	targetCompatibility = JavaVersion.VERSION_21
 	withSourcesJar()
 }
 
-// ELIMINA o COMENTA el bloque tasks.withType(JavaCompile)
-// O modifícalo así:
 tasks.withType(JavaCompile).configureEach {
-	// NO uses options.release
-	sourceCompatibility = '21'
-	targetCompatibility = '21'
+	options.encoding = 'UTF-8'
+	options.release = 21
 }
 
 jar {
 	from("LICENSE") {
-		rename { "${it}_${project.base.archivesName.get()}"}
+		rename { "${it}_${base.archivesName.get()}"}
 	}
 }
